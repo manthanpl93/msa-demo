@@ -2,7 +2,8 @@ import express, { Request, Response } from 'express';
 import { body } from 'express-validator';
 import jwt from 'jsonwebtoken';
 import { validateRequest, BadRequestError } from "@manthan-practice/common";
-
+import { UserCreatedPublisher } from "../events/publishers/user-created-publisher";
+import { natsWrapper } from "../nats-wrapper";
 import { User } from '../models/user';
 
 const router = express.Router();
@@ -28,7 +29,11 @@ router.post(
 
     const user = User.build({ email, password });
     await user.save();
-
+    new UserCreatedPublisher(natsWrapper.client).publish({
+      userId: user.id,
+      email,
+      version: user.version
+    });
     // Generate JWT
     const userJwt = jwt.sign(
       {

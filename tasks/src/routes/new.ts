@@ -8,6 +8,8 @@ import {
 
 import { Task } from "../models/task";
 import { BlockedUser } from "../models/blockedUsers";
+import { TaskCreatedPublisher } from "../events/publishers/task-created-publisher";
+import { natsWrapper } from "../nats-wrapper";
 
 const router = express.Router();
 
@@ -32,6 +34,13 @@ router.post(
     const { title, description, estimation } = req.body;
     const task = Task.build({ title, description, estimation, userId });
     await task.save();
+    new TaskCreatedPublisher(natsWrapper.client).publish({
+      title,
+      description,
+      estimation,
+      userId,
+      version: task.version,
+    });
     res.status(201).send(task);
   }
 );

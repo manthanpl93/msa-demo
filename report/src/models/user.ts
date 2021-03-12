@@ -1,27 +1,26 @@
 import mongoose from "mongoose";
-import { Password } from "../services/password";
 import { updateIfCurrentPlugin } from "mongoose-update-if-current";
+
 // An interface that describes the properties
 // that are requried to create a new User
 interface UserAttrs {
+  userId: string;
   email: string;
-  password: string;
-  blocked?: boolean;
+  version: number;
 }
 
 // An interface that describes the properties
 // that a User Model has
 interface UserModel extends mongoose.Model<UserDoc> {
   build(attrs: UserAttrs): UserDoc;
+  findByEvent(event: { id: string; version: number }): Promise<UserDoc | null>;
 }
 
 // An interface that describes the properties
 // that a User Document has
-interface UserDoc extends mongoose.Document {
-  _id: string;
+export interface UserDoc extends mongoose.Document {
+  id: string;
   email: string;
-  password: string;
-  blocked?: boolean;
   version: number;
 }
 
@@ -30,14 +29,6 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    blocked: {
-      type: Boolean,
-      default: false,
     },
   },
   {
@@ -52,19 +43,22 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", async function (done) {
-  if (this.isModified("password")) {
-    const hashed = await Password.toHash(this.get("password"));
-    this.set("password", hashed);
-  }
-  done();
-});
-
 userSchema.set("versionKey", "version");
 userSchema.plugin(updateIfCurrentPlugin);
 
+userSchema.statics.findByEvent = (event: { id: string; version: number }) => {
+  return User.findOne({
+    _id: event.id,
+    version: event.version - 1,
+  });
+};
+
 userSchema.statics.build = (attrs: UserAttrs) => {
-  return new User(attrs);
+  return new User({
+    email: attrs.email,
+    _id: attrs.userId,
+    version: attrs.version
+  });
 };
 
 const User = mongoose.model<UserDoc, UserModel>("User", userSchema);

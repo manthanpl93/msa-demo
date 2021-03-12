@@ -18,3 +18,7 @@ spec:
             backend:
               serviceName: tasks-srv
               servicePort: 3000
+          - path: /api/report/?(.*)
+            backend:
+              serviceName: report-srv
+              servicePort: 3000
